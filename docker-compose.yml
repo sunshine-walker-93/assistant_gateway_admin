@@ -1,0 +1,27 @@
+services:
+  admin:
+    build: .
+    image: assistant-gateway-admin:latest
+    container_name: assistant-gateway-admin-app
+    restart: unless-stopped
+    environment:
+      # MySQL credentials (must match assistant_account project)
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_me_password}
+      # Database connection string
+      # Note: Uses MySQL from assistant_account project (assistant-mysql container)
+      # For local development, you may need to use assistant-mysql:3306
+      ADMIN_DB_DSN: ${ADMIN_DB_DSN:-assistant:${MYSQL_PASSWORD}@tcp(assistant-mysql:3306)/assistant_gateway_db?parseTime=true}
+      # HTTP listen address (default: :8081)
+      ADMIN_HTTP_LISTEN: ${ADMIN_HTTP_LISTEN:-:8081}
+    ports:
+      - "8081:8081"
+    networks:
+      - assistant-net
+
+networks:
+  # 复用 account 项目中由 docker compose 创建的 assistant_assistant-net 网络
+  # 共享同一个 MySQL 容器（assistant-mysql）
+  assistant-net:
+    external:
+      name: assistant_assistant-net
+
