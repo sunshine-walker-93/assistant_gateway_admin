@@ -44,7 +44,8 @@ func main() {
 	// Build router
 	r := chi.NewRouter()
 
-	// Register middlewares
+	// Register middlewares (CORS must be first)
+	r.Use(middleware.CORSMiddleware)
 	r.Use(middleware.RequestLogger(logger))
 
 	// Create handlers
