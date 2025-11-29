@@ -24,24 +24,42 @@ func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
-		// Determine the origin to allow
+		// Handle preflight OPTIONS request first, before checking origin
+		if r.Method == "OPTIONS" {
+			// Determine the origin to allow
+			allowedOrigin := determineAllowedOrigin(origin, origins)
+			
+			// Set CORS headers for preflight
+			if allowedOrigin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+			} else if origin != "" {
+				// If origin is present but not in allowed list, still allow it for development
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
+			w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
+			w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
+			if allowCredentials {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+			w.Header().Set("Access-Control-Max-Age", "3600") // Cache preflight for 1 hour
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Determine the origin to allow for actual requests
 		allowedOrigin := determineAllowedOrigin(origin, origins)
 
-		// Set CORS headers
+		// Set CORS headers for actual requests
 		if allowedOrigin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		} else if origin != "" {
+			// If origin is present but not in allowed list, still allow it for development
+			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", allowedMethods)
 		w.Header().Set("Access-Control-Allow-Headers", allowedHeaders)
 		if allowCredentials {
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
-		w.Header().Set("Access-Control-Max-Age", "3600") // Cache preflight for 1 hour
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
 		}
 
 		// Continue with the next handler
