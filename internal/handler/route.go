@@ -172,13 +172,38 @@ func (h *RouteHandler) UpdateRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse update request
-	var route config.Route
-	if err := json.NewDecoder(r.Body).Decode(&route); err != nil {
+	// Parse update request - first decode to map to check if enabled field is present
+	var routeUpdate map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&routeUpdate); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
+
+	// Check if enabled field is present in the request
+	enabledPresent := false
+	var enabledValue bool
+	if val, ok := routeUpdate["enabled"]; ok {
+		enabledPresent = true
+		if boolVal, ok := val.(bool); ok {
+			enabledValue = boolVal
+		}
+	}
+
+	// Decode to Route struct
+	routeJSON, _ := json.Marshal(routeUpdate)
+	var route config.Route
+	if err := json.Unmarshal(routeJSON, &route); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	// If enabled field was not present in request, preserve the old value
+	if !enabledPresent {
+		route.Enabled = oldRoute.Enabled
+	} else {
+		route.Enabled = enabledValue
+	}
 
 	// Validation
 	if route.HTTPMethod == "" || route.HTTPPattern == "" || route.BackendName == "" ||
